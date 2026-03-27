@@ -399,6 +399,7 @@ async function loadSettings() {
         if (data.email_code) {
             document.getElementById('email-code-timeout').value = data.email_code.timeout || 120;
             document.getElementById('email-code-poll-interval').value = data.email_code.poll_interval || 3;
+            document.getElementById('email-code-resend-max-retries').value = data.email_code.resend_max_retries ?? 2;
         }
 
         // 加载 Outlook 设置
@@ -563,9 +564,17 @@ async function handleSaveEmailCode(e) {
         return;
     }
 
+    const resendMaxRetries = parseInt(document.getElementById('email-code-resend-max-retries').value);
+
+    if (resendMaxRetries < 0 || resendMaxRetries > 10) {
+        toast.error('重发次数必须在 0-10 之间');
+        return;
+    }
+
     const data = {
         timeout: timeout,
-        poll_interval: pollInterval
+        poll_interval: pollInterval,
+        resend_max_retries: resendMaxRetries
     };
 
     try {
