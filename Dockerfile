@@ -35,4 +35,5 @@ COPY . .
 EXPOSE ${DEFAULT_WEBUI_PORT}
 
 # 启动 WebUI
-CMD ["python", "webui.py"]
+# Railway 通过 PORT 环境变量指定端口，使用 shell 形式传递给 WEBUI_PORT
+CMD sh -c "python webui.py --port ${PORT:-15555}"
