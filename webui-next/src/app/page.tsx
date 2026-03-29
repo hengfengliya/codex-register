@@ -246,9 +246,9 @@ export default function RegisterPage() {
                 <div className="space-y-3 pl-3 border-l-2" style={{ borderColor: "var(--primary)" }}>
                   <div>
                     <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                      注册数量 (1-100)
+                      注册数量
                     </label>
-                    <input type="number" className="form-input" min={1} max={100}
+                    <input type="number" className="form-input" min={1}
                       value={batchCount} onChange={(e) => setBatchCount(Number(e.target.value))} />
                   </div>
                   <div>
