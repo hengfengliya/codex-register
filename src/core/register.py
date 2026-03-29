@@ -1472,6 +1472,21 @@ class RegistrationEngine:
         current_url = str(getattr(auth_response, "url", "") or "")
         html = auth_response.text or ""
 
+        # 如果跳到 add-phone 页面，尝试提取并跟随 continue/return_to 参数跳过
+        if "add-phone" in current_url:
+            self._log(f"检测到 add-phone 跳转，尝试跳过: {current_url[:120]}", "warning")
+            skip_url = self._extract_add_phone_skip_url(current_url, html)
+            if skip_url:
+                self._log(f"跳过 add-phone，继续: {skip_url[:120]}...")
+                started_at = time.time()
+                auth_response = self.session.get(skip_url, timeout=20)
+                self._log_timed_http_result("跳过 add-phone", started_at, auth_response)
+                current_url = str(getattr(auth_response, "url", "") or "")
+                html = auth_response.text or ""
+            else:
+                self._log("未能从 add-phone 页面找到跳过路径", "warning")
+                return None, None
+
         if "sign-in-with-chatgpt/codex/consent" in current_url or 'action="/sign-in-with-chatgpt/codex/consent"' in html:
             workspace_id = self._extract_workspace_id_from_response(response=auth_response, html=html, url=current_url)
             if not workspace_id:
@@ -1486,6 +1501,39 @@ class RegistrationEngine:
             return workspace_id, callback_url
 
         return None, None
+
+    def _extract_add_phone_skip_url(self, page_url: str, html: str) -> Optional[str]:
+        """从 add-phone 页面 URL 或 HTML 中提取跳过链接。"""
+        import urllib.parse
+
+        # 优先从 URL query 参数中提取 continue/return_to
+        try:
+            parsed = urllib.parse.urlparse(page_url)
+            params = urllib.parse.parse_qs(parsed.query)
+            for key in ("continue_url", "continue", "return_to", "redirect_uri", "next"):
+                vals = params.get(key) or []
+                if vals and vals[0]:
+                    return vals[0]
+        except Exception:
+            pass
+
+        # 从 HTML 中查找 skip/continue 链接
+        if html:
+            patterns = [
+                r'href=["\']([^"\']*skip[^"\']*)["\']',
+                r'href=["\']([^"\']*continue[^"\']*)["\']',
+                r'href=["\']([^"\']*not[_-]?now[^"\']*)["\']',
+                r'action=["\']([^"\']*add[_-]?phone[^"\']*)["\']',
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, html, re.IGNORECASE)
+                if match:
+                    href = match.group(1)
+                    if href.startswith("/"):
+                        href = "https://auth.openai.com" + href
+                    return href
+
+        return None
 
     def _follow_redirects(self, start_url: str) -> Optional[str]:
         """跟随重定向链，寻找回调 URL"""
